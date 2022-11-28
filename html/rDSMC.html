@@ -1,0 +1,237 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>rDSMC</title><meta name="generator" content="MATLAB 7.11"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2012-02-02"><meta name="DC.source" content="rDSMC.m"><style type="text/css">
+
+body {
+  background-color: white;
+  margin:10px;
+}
+
+h1 {
+  color: #990000; 
+  font-size: x-large;
+}
+
+h2 {
+  color: #990000;
+  font-size: medium;
+}
+
+/* Make the text shrink to fit narrow windows, but not stretch too far in 
+wide windows. */ 
+p,h1,h2,div.content div {
+  max-width: 600px;
+  /* Hack for IE6 */
+  width: auto !important; width: 600px;
+}
+
+pre.codeinput {
+  background: #EEEEEE;
+  padding: 10px;
+}
+@media print {
+  pre.codeinput {word-wrap:break-word; width:100%;}
+} 
+
+span.keyword {color: #0000FF}
+span.comment {color: #228B22}
+span.string {color: #A020F0}
+span.untermstring {color: #B20000}
+span.syscmd {color: #B28C00}
+
+pre.codeoutput {
+  color: #666666;
+  padding: 10px;
+}
+
+pre.error {
+  color: red;
+}
+
+p.footer {
+  text-align: right;
+  font-size: xx-small;
+  font-weight: lighter;
+  font-style: italic;
+  color: gray;
+}
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#2">DSMC Simulation for LEO CubeSat using MATLAB</a></li><li><a href="#3">Constants</a></li><li><a href="#4">Nose Cones</a></li><li><a href="#5">Calculations</a></li><li><a href="#6">Caluclating the lifespan of the satellite</a></li></ul></div><pre class="codeinput"><span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="comment">% Jasen Carroll %</span>
+<span class="comment">% In conjunction with Eric Tran %</span>
+<span class="comment">% Drexel University '12 %</span>
+<span class="comment">% Senior Design Team 02 %</span>
+<span class="comment">% Design and Development of Aerodynamic Satellite %</span>
+<span class="comment">% 12/18/11 %</span>
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+</pre><h2>DSMC Simulation for LEO CubeSat using MATLAB<a name="2"></a></h2><pre class="codeinput">clear
+</pre><h2>Constants<a name="3"></a></h2><pre class="codeinput">R = 250000; <span class="comment">%m altitude of orbit</span>
+G = 6.67e-11; <span class="comment">%m^3/(kg*s^2) gravitational constant</span>
+Me = 5.9742e24; <span class="comment">%kg mass of earth</span>
+Re = 6387100; <span class="comment">%m radius of earth</span>
+MEWe = G*Me; <span class="comment">% standard graviational parameter for earth</span>
+Msat = 1.33; <span class="comment">%kg mass of satellite</span>
+Rsat = Re + R; <span class="comment">%m radius of CubeSat orbit from center of earth</span>
+Vsat = sqrt(MEWe/Rsat); <span class="comment">%Initial orbital velocity</span>
+E = Vsat^2/2-MEWe/Rsat; <span class="comment">%Energy of the satellite</span>
+P = 2*pi*sqrt((Rsat)^3/MEWe); <span class="comment">%Period of the satellite for one orbit</span>
+deltaT = 0.001; <span class="comment">%s change in time for calculation of impulse equation</span>
+rho = (5.94e-08); <span class="comment">%g/m^3 mass of particles found at 250km</span>
+PartTot = 1.7e15; <span class="comment">%number of particles found at 250km per m^3</span>
+Mpart = rho/PartTot; <span class="comment">%average mass of a particle at 250km</span>
+MperS = rho*(100/10000)*Vsat; <span class="comment">%mass of particles hitting satellite per second</span>
+MdT = MperS*deltaT; <span class="comment">%mass of particles hitting satellite per deltaT</span>
+SatDist = 2*pi*Rsat; <span class="comment">%circumference of the satellite's orbit</span>
+s = 100; <span class="comment">%sampling rate</span>
+</pre><h2>Nose Cones<a name="4"></a></h2><pre class="codeinput">reply = input(<span class="string">'Press 1 for no nose cone, 2 for a double wedge, or 3 for a half cylinder '</span>);
+<span class="keyword">if</span> reply == 1
+    alpha = 90*(pi/180); <span class="comment">%radians angle between sat and x-axis</span>
+<span class="keyword">elseif</span> reply == 2
+    alpha = 30*(pi/180); <span class="comment">%radians angle between sat and x-axis</span>
+<span class="keyword">elseif</span> reply == 3
+    alpha = 0;
+<span class="keyword">end</span>
+</pre><pre class="codeoutput">Error using ==&gt; input
+Cannot call INPUT from EVALC.
+
+Error in ==&gt; rDSMC at 32
+reply = input('Press 1 for no nose cone, 2 for a double wedge, or 3 for a half cylinder ');
+</pre><h2>Calculations<a name="5"></a></h2><pre class="codeinput">i = 0;
+Ftot = 0;
+Vsati = Vsat;
+dT = P/s; <span class="comment">%Period divided by sampling rate</span>
+<span class="keyword">while</span> i &lt; dT
+    i = i + deltaT;
+    <span class="keyword">if</span> reply == 3
+        beta = normrnd(0,3.3333333,1)*(pi/180); <span class="comment">%radians randomly generated</span>
+        <span class="comment">%number from a normal distribution to calculate beta - the angle</span>
+        <span class="comment">%between the incoming particle and the x-axis</span>
+        alpha = randi(90)*(pi/180);
+    <span class="keyword">else</span>
+        beta = normrnd(0,3.3333333,1)*(pi/180); <span class="comment">%radians randomly generated</span>
+        <span class="comment">%number from a normal distribution to calculate beta - the angle</span>
+        <span class="comment">%between the incoming particle and the x-axis</span>
+    <span class="keyword">end</span>
+    Vpart = 1150; <span class="comment">%m/s randomly generated number</span>
+        <span class="comment">%from a normal distribution to calculate the velocity of the</span>
+        <span class="comment">%incoming particle</span>
+    v1 = [Vpart*cos(beta);Vpart*sin(beta)]; <span class="comment">% Vpart needs to be randomized</span>
+    theta = alpha + beta; <span class="comment">%radians angle of incidence</span>
+    phi = 2*pi - 2*theta;
+    Rot = [cos(phi) -sin(phi);sin(phi) cos(phi)]; <span class="comment">%rotational matrix</span>
+    v2 = Rot*v1;
+    deltaVpart = v2-v1; <span class="comment">%m/s change in velocity of particle from impact</span>
+    deltaV = deltaVpart(1);
+    F = (MdT*abs(deltaV))/deltaT; <span class="comment">% force from impulse</span>
+    deltaVsat = (F*deltaT)/(Msat); <span class="comment">% change in velocity from impact</span>
+    <span class="comment">% figure out two dimensional perfectly elastic collision</span>
+    Vsat = Vsat - abs(deltaVsat); <span class="comment">%m/s new sat velocity</span>
+    Ftot = Ftot + F; <span class="comment">%the total force over the given period</span>
+<span class="keyword">end</span>
+dVsat = Vsati - Vsat;
+</pre><h2>Caluclating the lifespan of the satellite<a name="6"></a></h2><pre class="codeinput">dx = SatDist/s;
+t = 0;
+<span class="keyword">while</span> R &gt; 100
+    dE = (Ftot)*(dx); <span class="comment">%Calculates the energy of the sate after one interval</span>
+    E = E - dE; <span class="comment">%Find the new over energy</span>
+    V = Vsati - dVsat; <span class="comment">%the current velocity</span>
+    R = MEWe/(V^2/2-E); <span class="comment">%the new range</span>
+    t = t + dT; <span class="comment">% the time the satellite lasted in seconds</span>
+<span class="keyword">end</span>
+t <span class="comment">%prints the number of seconds to the screen</span>
+</pre><p class="footer"><br>
+      Published with MATLAB&reg; 7.11<br></p></div><!--
+##### SOURCE BEGIN #####
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Jasen Carroll %
+% In conjunction with Eric Tran %
+% Drexel University '12 %
+% Senior Design Team 02 %
+% Design and Development of Aerodynamic Satellite %
+% 12/18/11 %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% DSMC Simulation for LEO CubeSat using MATLAB
+clear
+
+%% Constants
+R = 250000; %m altitude of orbit
+G = 6.67e-11; %m^3/(kg*s^2) gravitational constant
+Me = 5.9742e24; %kg mass of earth
+Re = 6387100; %m radius of earth
+MEWe = G*Me; % standard graviational parameter for earth
+Msat = 1.33; %kg mass of satellite
+Rsat = Re + R; %m radius of CubeSat orbit from center of earth
+Vsat = sqrt(MEWe/Rsat); %Initial orbital velocity
+E = Vsat^2/2-MEWe/Rsat; %Energy of the satellite
+P = 2*pi*sqrt((Rsat)^3/MEWe); %Period of the satellite for one orbit
+deltaT = 0.001; %s change in time for calculation of impulse equation
+rho = (5.94e-08); %g/m^3 mass of particles found at 250km
+PartTot = 1.7e15; %number of particles found at 250km per m^3
+Mpart = rho/PartTot; %average mass of a particle at 250km
+MperS = rho*(100/10000)*Vsat; %mass of particles hitting satellite per second
+MdT = MperS*deltaT; %mass of particles hitting satellite per deltaT
+SatDist = 2*pi*Rsat; %circumference of the satellite's orbit
+s = 100; %sampling rate
+%% Nose Cones
+reply = input('Press 1 for no nose cone, 2 for a double wedge, or 3 for a half cylinder ');
+if reply == 1
+    alpha = 90*(pi/180); %radians angle between sat and x-axis
+elseif reply == 2
+    alpha = 30*(pi/180); %radians angle between sat and x-axis
+elseif reply == 3
+    alpha = 0;
+end             
+%% Calculations
+i = 0;
+Ftot = 0;
+Vsati = Vsat;
+dT = P/s; %Period divided by sampling rate
+while i < dT
+    i = i + deltaT;
+    if reply == 3
+        beta = normrnd(0,3.3333333,1)*(pi/180); %radians randomly generated
+        %number from a normal distribution to calculate beta - the angle
+        %between the incoming particle and the x-axis
+        alpha = randi(90)*(pi/180);
+    else
+        beta = normrnd(0,3.3333333,1)*(pi/180); %radians randomly generated
+        %number from a normal distribution to calculate beta - the angle
+        %between the incoming particle and the x-axis
+    end
+    Vpart = 1150; %m/s randomly generated number
+        %from a normal distribution to calculate the velocity of the 
+        %incoming particle
+    v1 = [Vpart*cos(beta);Vpart*sin(beta)]; % Vpart needs to be randomized 
+    theta = alpha + beta; %radians angle of incidence
+    phi = 2*pi - 2*theta;
+    Rot = [cos(phi) -sin(phi);sin(phi) cos(phi)]; %rotational matrix
+    v2 = Rot*v1;
+    deltaVpart = v2-v1; %m/s change in velocity of particle from impact
+    deltaV = deltaVpart(1);
+    F = (MdT*abs(deltaV))/deltaT; % force from impulse
+    deltaVsat = (F*deltaT)/(Msat); % change in velocity from impact
+    % figure out two dimensional perfectly elastic collision
+    Vsat = Vsat - abs(deltaVsat); %m/s new sat velocity
+    Ftot = Ftot + F; %the total force over the given period
+end
+dVsat = Vsati - Vsat;
+
+%% Caluclating the lifespan of the satellite
+dx = SatDist/s;
+t = 0;
+while R > 100
+    dE = (Ftot)*(dx); %Calculates the energy of the sate after one interval
+    E = E - dE; %Find the new over energy
+    V = Vsati - dVsat; %the current velocity
+    R = MEWe/(V^2/2-E); %the new range
+    t = t + dT; % the time the satellite lasted in seconds
+end 
+t %prints the number of seconds to the screen
+##### SOURCE END #####
+--></body></html>
